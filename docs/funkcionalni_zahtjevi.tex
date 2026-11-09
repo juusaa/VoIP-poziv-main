@@ -1,0 +1,152 @@
+\section{Pregled funkcionalnih zahtjeva projekta}
+
+\subsection{Glavne funkcionalnosti sistema}
+
+Projektovani sistem predstavlja softversko rješenje za ostvarivanje glasovne komunikacije između dva korisnika putem računarske mreže. Sistem se sastoji od tri osnovne komponente: dva klijenta i registrara. Klijenti predstavljaju aplikacije koje koriste učesnici u komunikaciji, dok registrar evidentira registrovane korisnike i njihove mrežne adrese, čime omogućava pronalaženje pozvanog korisnika.
+
+Na slici~\ref{fig:voip_komponente} prikazane su osnovne komponente sistema i razdvajanje signalizacije od prenosa govora. Signalizacija se realizuje vlastitim protokolom razvijenim po uzoru na SIP (\textit{Session Initiation Protocol}), dok se govor kodiran vlastitom implementacijom G.711 kodeka prenosi direktno između klijenata, bez posredovanja registrara.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        komponenta/.style={
+            draw,
+            rounded corners,
+            minimum width=2.8cm,
+            minimum height=1cm,
+            align=center
+        },
+        signalizacija/.style={
+            dashed,
+            thick,
+            {Latex}-{Latex}
+        },
+        govor/.style={
+            thick,
+            {Latex}-{Latex}
+        }
+    ]
+        \node[komponenta] (registrar) at (0, 2.6)
+            {Registrar};
+        \node[komponenta] (klijentA) at (-3, 0)
+            {Klijent A};
+        \node[komponenta] (klijentB) at (3, 0)
+            {Klijent B};
+
+        \draw[signalizacija]
+            (klijentA) --
+            node[above left, font=\small] {Signalizacija}
+            (registrar);
+
+        \draw[signalizacija]
+            (registrar) --
+            node[above right, font=\small] {Signalizacija}
+            (klijentB);
+
+        \draw[govor]
+            (klijentA) -- (klijentB);
+
+        \node[
+            below=7mm of klijentA.south,
+            anchor=north,
+            xshift=3cm,
+            align=center,
+            font=\small
+        ] {Direktan dvosmjerni prenos govora\\G.711};
+    \end{tikzpicture}
+    \caption{Komponente VoIP sistema i razdvajanje signalizacije od prenosa govora}
+    \label{fig:voip_komponente}
+\end{figure}
+
+Šema predstavlja konceptualni prikaz komunikacije. Tačan tok signalizacijskih poruka zavisi od odabrane uloge registrara pri uspostavljanju poziva i definiše se u specifikaciji protokola.
+
+Osnovne funkcionalnosti sistema obuhvataju:
+\begin{itemize}
+    \item registraciju korisnika na registrar;
+    \item pronalaženje registrovanog korisnika na osnovu korisničkog imena;
+    \item upućivanje i prijem dolaznih poziva;
+    \item prihvatanje i odbijanje dolaznih poziva;
+    \item obavještavanje pozivaoca o zvonjenju i neuspješnim ishodima poziva;
+    \item uspostavljanje dvosmjerne glasovne komunikacije;
+    \item završetak aktivnog poziva od strane bilo kojeg učesnika;
+    \item evidentiranje osnovne statistike prenosa govornih paketa.
+\end{itemize}
+
+\subsection{Registracija korisnika}
+
+Registracija predstavlja proces kojim se klijentska aplikacija prijavljuje registraru i dostavlja korisničko ime i podatke o svojoj mrežnoj adresi. Registrar obrađuje zahtjev, povezuje korisničko ime s mrežnom adresom klijenta i šalje odgovor o ishodu registracije.
+
+Na osnovu evidentiranih podataka omogućava se pronalaženje korisnika po korisničkom imenu, bez potrebe da pozivalac poznaje njegovu mrežnu adresu. U okviru predviđenog načina rada sistema, korisnici se registruju prije upućivanja i prijema poziva.
+
+\subsection{Uspostavljanje, prihvatanje, odbijanje i završetak poziva}
+
+Sistem mora omogućiti da registrovani korisnik uputi poziv drugom korisniku navođenjem njegovog korisničkog imena. Podaci iz evidencije registrara koriste se za pronalaženje pozvanog klijenta i dostavljanje zahtjeva za uspostavljanje poziva. Pozvani korisnik mora biti obaviješten o dolaznom pozivu i imati mogućnost njegovog prihvatanja ili odbijanja, dok pozivalac mora dobiti obavijest da poziv zvoni.
+
+Tokom uspostavljanja poziva sistem mora podržati sljedeće ishode:
+\begin{itemize}
+    \item \textbf{Poziv prihvaćen:} pozvani korisnik prihvata poziv, nakon čega se završava signalizacijska razmjena potrebna za početak razgovora.
+    \item \textbf{Poziv odbijen:} pozvani korisnik odbija poziv, a pozivalac dobija odgovarajuću obavijest.
+    \item \textbf{Korisnik zauzet:} pozvani korisnik već učestvuje u aktivnom pozivu, pa se pozivalac obavještava da novi poziv nije moguće uspostaviti.
+    \item \textbf{Korisnik ne postoji:} traženo korisničko ime nije pronađeno u evidenciji registrovanih korisnika, o čemu se obavještava pozivalac.
+    \item \textbf{Poziv bez odgovora:} pozvani korisnik ne odgovori u predviđenom vremenskom intervalu, nakon čega se pokušaj uspostavljanja poziva završava i pozivalac obavještava o ishodu.
+\end{itemize}
+
+Ishod označen kao \textit{korisnik ne postoji} odnosi se na odsustvo korisničkog imena iz evidencije registrovanih korisnika, a ne nužno na nepostojanje trajnog korisničkog računa.
+
+Nakon uspješnog uspostavljanja poziva, sistem mora omogućiti istovremeni prenos govora u oba smjera između dva računara u istoj lokalnoj mreži.
+
+Aktivni poziv mora moći završiti bilo koji učesnik. Pri urednom završetku poziva, oba klijenta moraju prekinuti slanje i reprodukciju govora te se vratiti u stanje spremnosti za novi poziv. Završetak razgovora ne podrazumijeva odjavu korisnika s registrara.
+
+Sistem mora definisati ponašanje u slučaju nedostupnosti registrara ili drugog klijenta. Kada nije moguće dobiti očekivani odgovor, klijent mora nakon definisanog vremenskog ograničenja obavijestiti korisnika i završiti neuspjelu operaciju. U slučaju gubitka komunikacije s drugim klijentom tokom razgovora, potrebno je predvidjeti izlazak iz aktivnog stanja poziva i oslobađanje pripadajućih resursa. Mehanizmi prepoznavanja nedostupnosti i vrijednosti vremenskih ograničenja definišu se u specifikaciji protokola.
+
+\subsection{Zahtjevi za vlastiti signalizacijski protokol i G.711 kodek}
+
+\subsubsection{Vlastiti signalizacijski protokol}
+
+Signalizacijski protokol zasniva se na tekstualnim porukama tipa zahtjev--odgovor i mora podržati:
+\begin{itemize}
+    \item registraciju korisnika i odgovor o ishodu registracije;
+    \item upućivanje poziva;
+    \item potvrdu uspostavljanja poziva;
+    \item završetak poziva;
+    \item odgovore kojima se označavaju zvonjenje, prihvatanje poziva i neuspješni ishodi.
+\end{itemize}
+
+Navedene operacije odgovaraju osnovnim ulogama SIP poruka \texttt{REGISTER}, \texttt{INVITE}, \texttt{ACK} i \texttt{BYE}, dok se konkretan format poruka definiše u okviru vlastitog protokola.
+
+Prema projektnom zadatku, svaka signalizacijska poruka mora sadržavati najmanje identifikator poziva, redni broj poruke, pozivaoca, pozvanog i adresu za odgovor. Značenje i vrijednosti ovih polja za pojedine tipove poruka, uključujući registracijske poruke, definišu se u specifikaciji protokola.
+
+Poruka za uspostavljanje poziva mora sadržavati i opis govornog toka: IP adresu, port i oznaku korištenog kodeka, odnosno $\mu$-law ili A-law. Signalizacijska razmjena mora omogućiti da oba klijenta dobiju podatke potrebne za slanje govora drugom učesniku i koriste međusobno podržanu varijantu kodeka.
+
+Potrebno je definisati ponašanje sistema u slučaju grešaka, izostanka odgovora i dupliranja signalizacijskih poruka. Ako se za signalizaciju odabere UDP, obavezno je predvidjeti ponovno slanje poruka kada očekivani odgovor izostane, uz ograničenje broja pokušaja ili ukupnog vremena čekanja. Obrada dupliranih poruka ne smije izazvati višestruko izvršavanje iste operacije niti neispravan prelazak između stanja poziva.
+
+Izbor između UDP-a i TCP-a, kao i odluka da li registrar prosljeđuje zahtjev za poziv ili pozivaocu vraća adresu pozvanog klijenta, dokumentuju se u zapisu arhitektonske odluke (ADR).
+
+Detaljni format poruka, mašina stanja poziva za obje strane, kodovi grešaka, vremenska ograničenja i poređenje sa SIP-om razrađuju se u posebnoj specifikaciji protokola.
+
+\subsubsection{G.711 kodek i prenos govora}
+
+Sistem mora sadržavati vlastitu implementaciju G.711 kodeka za kodiranje i dekodiranje govornog signala, uz podršku za $\mu$-law i/ili A-law. Gotove implementacije G.711 ne smiju se koristiti kao dio rješenja, ali mogu poslužiti za provjeru rezultata vlastite implementacije.
+
+Za obradu i prenos govora potrebno je ispuniti sljedeće zahtjeve:
+\begin{itemize}
+    \item ulazni signal mora biti 16-bitni PCM, uzorkovan frekvencijom od 8~kHz;
+    \item jedan govorni paket mora sadržavati 20~ms govora, odnosno 160 uzoraka i 160 bajtova kodiranog govornog sadržaja;
+    \item zaglavlje govornog paketa mora sadržavati najmanje redni broj, vremensku oznaku i oznaku kodeka;
+    \item prijemni klijent mora dekodirati primljeni sadržaj i omogućiti njegovu reprodukciju;
+    \item prijemni klijent mora koristiti bafer za reprodukciju fiksne dužine radi ublažavanja varijacija kašnjenja pristiglih paketa;
+    \item redni brojevi paketa moraju omogućiti određivanje njihovog redoslijeda i prepoznavanje nedostajućih ili dupliranih paketa;
+    \item potrebno je definisati postupanje s nedostajućim paketima i paketima koji stignu nakon predviđenog vremena reprodukcije;
+    \item za testiranje se koriste WAV fajlovi, dok demonstracija stvarnog poziva mora uključivati mikrofon i zvučnik;
+    \item za svaki poziv potrebno je u logu evidentirati broj poslanih, primljenih i izgubljenih govornih paketa.
+\end{itemize}
+
+Protok kodiranog govora iznosi 64~kbit/s po smjeru, bez zaglavlja paketa. Tačna dužina bafera određuje se tokom projektovanja; vrijednost od 60~ms navedena je u projektnom zadatku kao primjer. U normalnim mrežnim uslovima sistem mora omogućiti kontinuiranu reprodukciju govora.
+
+Način računanja statistike paketa, uključujući razlikovanje izgubljenih paketa od onih koji su stigli prekasno za reprodukciju, definiše se u specifikaciji prenosa govora.
+
+\subsection{Granice sistema}
+
+Obavezni obim sistema podrazumijeva glasovni poziv između dva klijenta na dva računara u istoj lokalnoj mreži. Dovoljan je klijentski interfejs koji radi u terminalu.
+
+Pozivi preko interneta i prolazak kroz NAT, interoperabilnost sa stvarnim SIP telefonima i serverima, video, konferencijski pozivi i istovremeno zvonjenje na više uređaja nisu dio obaveznog obima projekta. Autentifikacija lozinkom, šifrovanje govora, adaptivni bafer i napredni postupci prikrivanja gubitaka predstavljaju moguća dodatna proširenja.
