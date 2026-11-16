@@ -1,4 +1,3 @@
-[Uploading README.md…]()
 # VoIP poziv
 
 Studentski projekat iz predmeta **Telekomunikacijski softver inženjering**. Cilj je omogućiti glasovni poziv između dva računara u lokalnoj mreži uz vlastiti tekstualni signalizacijski protokol po uzoru na SIP i vlastitu implementaciju G.711 kodeka.
